@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="d13f41b9-d682-4cc5-9cf9-b05aff621b18" >
+		<http:listener-connection host="${https.host}" port="${https.port}" />
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="d77e7288-a756-4f2d-9cf0-ad494da52b7f" file="config.yaml" />
+	<ftp:config name="FTP_Config" doc:name="FTP Config" doc:id="c327771b-4371-45b7-9350-4f37e4ea6abf" >
+		<ftp:connection host="${ftp.host}" username="${ftp.username}" password="${ftp.password}" port="${ftp.port}"/>
+	</ftp:config>
+	<flow name="readDataFromFTP" doc:id="94403134-6898-40a1-95e3-51694f0ee4eb" >
+		<http:listener doc:name="Listener" doc:id="f398f028-a0f0-4312-8313-3ca3406fe9fd" path="${https.path}" config-ref="HTTP_Listener_config" />
+		<ftp:list doc:name="all files from /htdocs/ftp/read" doc:id="8f7593a7-0ec6-4053-b13b-b7aecc64d4f0" config-ref="FTP_Config" directoryPath="/htdocs/ftp/read" target="transformationFile"/>
+		<ftp:read doc:name="listed files" doc:id="a4e09b53-561a-4d23-85c2-f140eae67e67" config-ref="FTP_Config" path="#[vars.transformationFile[0].attributes.path]"/>
+		<ee:transform doc:name="xml to json" doc:id="0c47dea0-2f26-403c-964e-d587a52eebe3">
+			<ee:message>
+			</ee:message>
+				<ee:variables>
+				<ee:set-variable variableName="transformation" ><![CDATA[%dw 2.0
+output application/json
+---
+ payload.users.*user map {
+    userId: $.@userId,
+    email: $.email,
+    firstname: $.firstName,
+    name: $.name
+}]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+		<ftp:move doc:name="to processed folder" doc:id="1c9fa9dc-a5df-43c1-a86c-3f325e826829" config-ref="FTP_Config" sourcePath="#[vars.transformationFile[0].attributes.path]" targetPath="/htdocs/ftp/processed" overwrite="true"/>
+		<set-payload value="#[vars.transformation]" doc:name="users from ftp" doc:id="45e74635-c73b-4af8-ad90-43419172d2b0" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b9a131b7-c488-4fc7-8acd-456beab434a2" >
+				<ftp:move doc:name="to error folder" doc:id="a9c2969a-e6b2-4b4b-9365-117d24ffbca9" config-ref="FTP_Config" targetPath="/htdocs/ftp/processed" sourcePath="#[vars.transformationFile[0].attributes.path]"/>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="Housekeeping" doc:id="b727b15c-6b55-4c89-b991-a70b086bdf06" initialState="stopped">
+		<scheduler doc:name="0 0 12 1 1/1 ? * | 1 month " doc:id="202341ac-5f9e-4d96-bddf-817eacc50259" >
+			<scheduling-strategy >
+				<cron expression="0 0/1 * 1/1 * ? *" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="HouseKeeping Started" doc:id="f1862e9b-2209-4146-918d-958008cd5d74" message='#["HouseKeeping Started"]' />
+		<set-variable value='#[(now() - ("PT$(1)M" as Period)) as LocalDateTime]' doc:name="Set Current Timestamp" doc:id="0647e55f-b90c-41c8-8a86-2ae75ae76e7b" variableName="varDeleteTimestamp" />
+		<ftp:list doc:name="all files created one month ago" doc:id="996c9850-c464-49e4-a31e-896d8dc13033" config-ref="FTP_Config" directoryPath="/htdocs/ftp/processed"/>
+		<choice doc:name="Choice" doc:id="f174ae78-6ed3-4278-8ff2-bd6d33196fa7" >
+			<when expression="#[if(isEmpty(payload)) false else if (sizeOf(payload) &gt; 0) true else false]" >
+				<parallel-foreach doc:name="Parallel For Each" doc:id="d07e88ac-78e5-4b6c-b2a6-885a5d0553b0" >
+					<ftp:delete doc:name="old file" doc:id="e624ca14-923e-4868-a928-d26afd5c7ebc" config-ref="FTP_Config" path="#[payload.attributes.path]"/>
+					<logger level="INFO" doc:name="deleted status" doc:id="a0b3431d-4f21-42fc-acfb-9b536b160e74" message='#[payload.attributes.path ++ " was deleted"]' />
+				</parallel-foreach>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="default status" doc:id="db05d610-77a6-4001-a0be-3f10a37d9ff2" message='#["No files found in /htdocs/ftp/processed "]'/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Housekeeping ended" doc:id="5560ba71-e20c-46ec-89ea-dd6127236310" message="Housekeeping ended" />
+	</flow>
+</mule>

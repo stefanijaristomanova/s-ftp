@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="ftpFile" format="xml">
+      <types:example format="xml" element="users" location="examples/ftpFile.xml"/>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#0c47dea0-2f26-403c-964e-d587a52eebe3">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="ftpFile"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

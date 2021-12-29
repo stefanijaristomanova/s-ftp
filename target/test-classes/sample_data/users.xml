@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<users>
+<user userId="0000200080">
+   <email>william.scout@webinar.com</email>
+   <firstName>Scout</firstName>
+   <name>William</name>
+</user>
+<user userId="0000200650">
+   <email>asparuh.kondurchevski@webinar.com</email>
+   <firstName>Asparuh</firstName>
+   <name>Kondurchevski</name>
+</user>
+<user userId="0000200674">
+   <email>shilda.suleyman@webinar.com</email>
+   <firstName>Shilda</firstName>
+   <name>Suleyman</name>
+</user>
+</users>

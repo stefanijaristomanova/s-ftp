@@ -1,0 +1,16 @@
+api:
+  name: "s-ftp"
+  client_id: "c47b595d20b3432c96a9128bde4c3dcd"
+  client_secret: ""
+https:
+  port: "8084"
+  host: "localhost"
+  path: "ftpUsers"   
+ftp:
+  host: "ftp.byethost22.com"
+  username: "b22_30635151"
+  password: "Valion123"
+  path: "/htdocs/ftp/read"
+  port: "21"
+
+ 
